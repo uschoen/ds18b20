@@ -321,6 +321,9 @@ node_modules/
 *.ncb
 *.aps
 
+# sorce code
+.pio
+
 # Visual Studio LightSwitch build output
 **/*.HTMLClient/GeneratedArtifacts
 **/*.DesktopClient/GeneratedArtifacts
