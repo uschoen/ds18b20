@@ -321,7 +321,7 @@ node_modules/
 *.ncb
 *.aps
 
-# sorce code
+# source code
 .pio
 
 # Visual Studio LightSwitch build output
