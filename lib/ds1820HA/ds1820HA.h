@@ -2,6 +2,7 @@
     #define DS1820HA_H
     #include <Arduino.h>
     #include "OneWire.h"
+    #include "ArduinoJson.h"
     #include "DallasTemperature.h"      // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
     /*
@@ -14,11 +15,11 @@
         or as config flag or in our
     own configuratione file
     */
-    #ifndef ONE_WIRE_PORT_0
-        #define ONE_WIRE_PORT_0 6
+    #ifndef ONE_WIRE_PORT
+        #define ONE_WIRE_PORT {6,7}
     #endif
-    #ifndef ONE_WIRE_PORT_1
-        #define ONE_WIRE_PORT_1 7
+    #ifndef ONE_WIRE_BUS_COUNT
+        #define ONE_WIRE_BUS_COUNT 2
     #endif
     #ifndef DS18B20_MAX_SENSORS
         #define DS18B20_MAX_SENSORS 8 // max DS18B20 sensors to handle
@@ -27,36 +28,30 @@
         #define DS18B20_UPDATE_TIME 1000
     #endif
 
-    typedef struct {
-        DeviceAddress adr;
-        float LastTempC;
-        bool valid;
-        int can_id;
-        char32_t HAdeviceID;
-        int busID;
-        int deviceID;
-    } senorData;
-
-
     class ds1820HA{
         private: 
-            OneWire oneWire0;         
-            OneWire oneWire1; 
-            OneWire WBus[2];     
-            DallasTemperature SensorBus0;                
-            DallasTemperature SensorBus1;
-            DallasTemperature SensorsBus[2];
-            senorData TemperatorSensors[DS18B20_MAX_SENSORS];
-            uint16_t updateTime = DS18B20_UPDATE_TIME;
-
-            void disableSensor(uint8_t SensorID);
-            void disableAllSensor();
-
+            OneWire oneWireBus[ONE_WIRE_BUS_COUNT];
+            int OneWirePins[ONE_WIRE_BUS_COUNT]=ONE_WIRE_PORT;
+            DallasTemperature SensorsBus[ONE_WIRE_BUS_COUNT];
+            JsonDocument _config;
+            ulong sensorInterval = DS1820_UPDATE_TIME;
+            ulong lastSensorInterval =0;
+            void stringToDeviceAddress(String stringAddress,DeviceAddress& tempDeviceAdress);
+            String deviceAddresToString(DeviceAddress deviceAddress);
+            void setAllSensorNoValid();
+            void setSensorNoValid(String sensorAdress);
+            void setSensorValid(String sensorAddress);
+            void updateSensors(int busID);
         public:
-            ds1820HA(uint8_t busPin0 = ONE_WIRE_PORT_0, uint8_t busPin1 = ONE_WIRE_PORT_1);
+            ds1820HA();
+            void begin(JsonDocument& CFG);
             void begin();
-            void begin(uint8_t busPin0, uint8_t busPin1);
-            void setUpdateTime(uint16_t updateTime);
+            /*
+            set the interval to read the temperature
+            Arguments:
+                uint16_t updateTime in milli second;
+            */
+            void setSensorInterval(ulong updateTime);
             void loop();
     };
 #endif //DS1820HA_H
