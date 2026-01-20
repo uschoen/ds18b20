@@ -321,9 +321,6 @@ node_modules/
 *.ncb
 *.aps
 
-# source code
-.pio
-
 # Visual Studio LightSwitch build output
 **/*.HTMLClient/GeneratedArtifacts
 **/*.DesktopClient/GeneratedArtifacts
@@ -419,3 +416,5 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+.pio/build/esp12e/*
+.pio/build/*
