@@ -34,24 +34,25 @@
             int OneWirePins[ONE_WIRE_BUS_COUNT]=ONE_WIRE_PORT;
             DallasTemperature SensorsBus[ONE_WIRE_BUS_COUNT];
             JsonDocument _config;
-            ulong sensorInterval = DS1820_UPDATE_TIME;
+            ulong sensorInterval = DS18B20_UPDATE_TIME;
             ulong lastSensorInterval =0;
-            void stringToDeviceAddress(String stringAddress,DeviceAddress& tempDeviceAdress);
-            String deviceAddresToString(DeviceAddress deviceAddress);
+            void stringToDeviceAddress(String ,DeviceAddress& );
+            String deviceAddresToString(DeviceAddress );
             void setAllSensorNoValid();
-            void setSensorNoValid(String sensorAdress);
-            void setSensorValid(String sensorAddress);
-            void updateSensors(int busID);
+            void setSensorNoValid(String );
+            void setSensorValid(String );
+            void updateSensors(int );
+            void readAllSensorsTemp(uint);
         public:
             ds1820HA();
-            void begin(JsonDocument& CFG);
+            void begin(JsonDocument&);
             void begin();
             /*
             set the interval to read the temperature
             Arguments:
                 uint16_t updateTime in milli second;
             */
-            void setSensorInterval(ulong updateTime);
+            void setSensorInterval(ulong);
             void loop();
     };
 #endif //DS1820HA_H

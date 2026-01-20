@@ -1,4 +1,4 @@
-#include "ds1820HA.h"
+#include <ds1820HA.h>
 #include <Arduino.h>
 
 ds1820HA::ds1820HA(){}
@@ -20,13 +20,15 @@ void ds1820HA::begin(){
     config -> JsonDokument
 
       [98:98:87:2d:fe:h2:00]={
-          DeviceAddress  sensorAddress;
-          int            lastTempC;
-          uint           canAddress;
-          uint           interval;
-          uint           ds1820id;
-          bool           valid;
-          bool           connected;
+          string          deviceAddress;
+          int             deviceID,
+          float           lastTemperature;
+          float           temperature;
+          int             busID;
+          uint            canID;
+          bool            valid;
+          String          homeAssistantID;
+          bool            enable,
       }
       [12:fa:12:2d:ff:b2:10]={....}
       [a2:ea:02:4d:aa:c2:99]={....}
@@ -80,9 +82,9 @@ String ds1820HA::deviceAddresToString(DeviceAddress deviceAddress){
 void ds1820HA::setAllSensorNoValid(){
     JsonObject sensors = this->_config.as<JsonObject>();
     for (JsonPair kv : sensors) {
-          String sensorAddress=String(kv.key().c_str());
-          this->setSensorNoValid(sensorAddress);
-        }   
+        String sensorAddress=String(kv.key().c_str());
+        this->setSensorNoValid(sensorAddress);
+    }   
 }
 /* set a sensor to no valid
 */
@@ -138,13 +140,18 @@ void ds1820HA::updateSensors(int busID){
                         Serial.print("add device address: ");
                         Serial.println(StringDeviceAddress);
                     #endif
-                    this->_config[StringDeviceAddress]["deviceAdress"]=StringDeviceAddress;
+                    this->_config[StringDeviceAddress]["deviceAddress"]=StringDeviceAddress;
+                    this->_config[StringDeviceAddress]["deviceID"]=ds1820id;
                     this->_config[StringDeviceAddress]["busID"]=busID;
                     this->_config[StringDeviceAddress]["temperature"]=9999;
+                    this->_config[StringDeviceAddress]["lastTemperature"]=9999;
                     this->_config[StringDeviceAddress]["canID"]="";
                     this->_config[StringDeviceAddress]["homeAssistantID"]=StringDeviceAddress;
                     this->_config[StringDeviceAddress]["enable"]=false;
                     this->setSensorValid(StringDeviceAddress);
+                    #ifdef DEBUG
+                        serializeJson(this->_config[StringDeviceAddress],Serial);
+                    #endif
                 }
             }else{
                 #ifdef DEBUG
@@ -157,10 +164,30 @@ void ds1820HA::updateSensors(int busID){
         }
     }
 }
+void ds1820HA::readAllSensorsTemp(uint busID){
+    SensorsBus[busID].requestTemperatures();
+    JsonObject sensors = this->_config.as<JsonObject>();
+    for (JsonPair kv : sensors) {
+        String sensorAddress=String(kv.key().c_str());
+        if (this->_config[sensorAddress]["busID"].as<u_int>()==busID){
+            DeviceAddress SensorDeviceAdd;
+            this->stringToDeviceAddress(this->_config[sensorAddress]["deviceAddress"],SensorDeviceAdd);
+            float tempC = SensorsBus[busID].getTempC(SensorDeviceAdd);
+            if (tempC != DEVICE_DISCONNECTED_C){
+                this->_config[sensorAddress]
+            }else{
+            #ifdef DEBUG
+                Serial.print("Error: Could not read temperature data");
+            #endif
+            }
+        }
+    }   
+}
 void ds1820HA::loop(){
     if (millis() - this->lastSensorInterval >= this->sensorInterval){        // check evry 1s
         this->lastSensorInterval =millis();
         this->setAllSensorNoValid();
+        // update all sensors
         for (uint busID=0;busID>sizeof(SensorsBus);busID++){
             #ifdef DEBUG
                 Serial.print("check bus ");
