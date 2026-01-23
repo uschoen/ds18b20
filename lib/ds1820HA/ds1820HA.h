@@ -45,7 +45,7 @@
             void setSensorEnable(JsonObject& );
             void setSensorDisable(JsonObject& );
             void updateSensors(int );
-            void readAllSensorsTemp(uint);
+            void readAllSensorsTemp();
         public:
             ds1820HA();
             void begin(JsonDocument&);
