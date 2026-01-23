@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ds1820HA.h>
+#include <ArduinoJson.h> 
 /*
 insert in platformio.ini 
 build_flags = 
@@ -17,10 +18,18 @@ void setup() {
   #ifdef DEBUG
     Serial.begin(115200);
     while (!Serial){};
+    Serial.println("");
+    Serial.println("");
     Serial.println("start ds1820 example");
   #endif
-  
-  TempSensor.begin();
+  JsonDocument config;
+  String cfg="{\"wifi\":\"gps\",\"password\":\"ggfggf\",\"devices\":{\"28:ff:d4:55:91:15:01:9e\":[{\"deviceAddress\":\"28:ff:d4:55:91:15:01:9e\",\"deviceID\":0,\"busID\":0,\"temperature\":-127,\"canID\":\"\",\"homeAssistantID\":\"28:ff:d4:55:91:15:01:9e\",\"connected\":true,\"enable\":false}]}}}";
+  //String cfg="{\"wifi\":\"gps\",\"password\":\"ggfggf\",\"devices\":[]}";
+	//String cfg="{\"wifi\":\"gps\",\"password\":\"ggfggf\"}";
+  deserializeJson(config,cfg);
+
+  //TempSensor.begin(config);
+   TempSensor.begin();
   
 
 }

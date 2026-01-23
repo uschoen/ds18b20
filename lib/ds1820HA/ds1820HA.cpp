@@ -4,14 +4,35 @@
 ds1820HA::ds1820HA(){}
 
 void ds1820HA::begin(){
-    for (int busID=0;busID>ONE_WIRE_BUS_COUNT;busID++){
-        oneWireBus[busID].begin(OneWirePins[busID]);
-        SensorsBus[busID].setOneWire(&oneWireBus[busID]);
+    #ifdef DEBUG
+        Serial.println("beginn onewire setup ds1820HA");
+    #endif 
+    if (this->_config["devices"].is<JsonObject>()){
+         #ifdef DEBUG
+            Serial.println("found 'devices' in config");
+        #endif
+        this->_devices=this->_config["devices"];
+    }else{
+        #ifdef DEBUG
+            Serial.println("add 'devices' to config");
+        #endif
+        this->_devices=this->_config["devices"].to<JsonObject>();
+    }
+    serializeJson(this->_config,Serial);
+    Serial.println("");
+    serializeJson(this->_devices,Serial);
+    Serial.println("");
+    this->setAllSensorNotConnected();
+    for (int busID=0;busID<ONE_WIRE_BUS_COUNT;busID++){
         #ifdef DEBUG
             Serial.print("start oneWire bus ");
-            Serial.println(busID);
+            Serial.print(busID);
+            Serial.print(" pin: ");
+            Serial.println(this->OneWirePins[busID]);
         #endif
-        SensorsBus[busID].begin();
+        this->oneWireBus[busID].begin(this->OneWirePins[busID]);
+        this->SensorsBus[busID].setOneWire(&this->oneWireBus[busID]);
+        this->SensorsBus[busID].begin();
     }
     delay(300);
 }
@@ -22,11 +43,10 @@ void ds1820HA::begin(){
       [98:98:87:2d:fe:h2:00]={
           string          deviceAddress;
           int             deviceID,
-          float           lastTemperature;
           float           temperature;
           int             busID;
           uint            canID;
-          bool            valid;
+          bool            connected;
           String          homeAssistantID;
           bool            enable,
       }
@@ -35,8 +55,10 @@ void ds1820HA::begin(){
       [....]
       */
 void ds1820HA::begin(JsonDocument& config){
+    #ifdef DEBUG
+        Serial.println("beginn ds1820HA");
+    #endif
     this->_config=config;
-    this->setAllSensorNoValid();
     this->begin();
 }
 /*
@@ -76,35 +98,54 @@ String ds1820HA::deviceAddresToString(DeviceAddress deviceAddress){
     }
     return deviceString;
 }
-/* set all sensor to no valid
-    set value "valid" to false
+/* set all sensor to no connected
+    set value "connected" to false
 */
-void ds1820HA::setAllSensorNoValid(){
-    JsonObject sensors = this->_config.as<JsonObject>();
-    for (JsonPair kv : sensors) {
-        String sensorAddress=String(kv.key().c_str());
-        this->setSensorNoValid(sensorAddress);
-    }   
+void ds1820HA::setAllSensorNotConnected(){
+    #ifdef DEBUG
+        Serial.println("set all Sensors to not connected");
+    #endif
+    for (JsonPair devicePair : this->_devices) {
+        String deviceAddr = devicePair.key().c_str();
+        JsonArray instances = devicePair.value().as<JsonArray>();
+        for (JsonObject deviceData : instances) {
+            this->setSensorNotConnected(deviceData);     
+        }  
+    }
 }
-/* set a sensor to no valid
+/* set a sensor to no connected
 */
-void ds1820HA::setSensorNoValid(String sensorAddress){
+void ds1820HA::setSensorNotConnected(JsonObject& deviceData){
     #ifdef DEBUG
         Serial.print("set sensor ");
-        Serial.print(sensorAddress);
-        Serial.println("to no valid");
+        Serial.print(deviceData["deviceAddress"].as<const char*>());
+        Serial.println(" to no connected");
     #endif
-    this->_config[sensorAddress]["valid"]=false;
+    deviceData["connected"]=false;
 }
-/* set a sensor to no valid
+void ds1820HA::setSensorEnable(JsonObject& deviceData){
+    #ifdef DEBUG
+        Serial.print("enable sensor ");
+        Serial.println(deviceData["deviceAddress"].as<const char*>());
+    #endif
+    deviceData["enable"]=true;
+};
+void ds1820HA::setSensorDisable(JsonObject& deviceData){
+    #ifdef DEBUG
+        Serial.print("disable sensor ");
+        Serial.println(deviceData["deviceAddress"].as<const char*>());
+    #endif
+    deviceData["enable"]=false;
+};
+/* set a sensor to no connected
 */
-void ds1820HA::setSensorValid(String sensorAddress){
+void ds1820HA::setSensorConnected(JsonObject& deviceData){
     #ifdef DEBUG
         Serial.print("set sensor ");
-        Serial.print(sensorAddress);
-        Serial.println("to valid");
+        Serial.print(deviceData["deviceAddress"].as<const char*>());
+        Serial.println(" to connected");
     #endif
-    this->_config[sensorAddress]["valid"]=true;
+    deviceData["connected"]=true;
 }
 /* set interval to read sensor values (defualt 1000ms/1sec)
     parameter:
@@ -114,7 +155,7 @@ void ds1820HA::setSensorInterval(ulong updateInterval){
     this->sensorInterval=updateInterval;
 };
 void ds1820HA::updateSensors(int busID){
-    uint8_t foundDevices=SensorsBus[busID].getDeviceCount();
+    uint8_t foundDevices=this->SensorsBus[busID].getDeviceCount();
     #ifdef DEBUG
         Serial.print("found for busID:");
         Serial.print(busID);
@@ -127,32 +168,39 @@ void ds1820HA::updateSensors(int busID){
         for(uint8_t ds1820id=0;ds1820id<foundDevices; ds1820id++){ 
             DeviceAddress ds1820DeviceAddress; 
             String StringDeviceAddress;
-            if(SensorsBus[busID].getAddress(ds1820DeviceAddress, ds1820id)){ 
+            if(this->SensorsBus[busID].getAddress(ds1820DeviceAddress, ds1820id)){ 
                 StringDeviceAddress=this->deviceAddresToString(ds1820DeviceAddress);
-                if (this->_config[StringDeviceAddress].is<String>()){
+                if (this->_devices[StringDeviceAddress].is<JsonArray>()){
                     #ifdef DEBUG
                         Serial.print("update device address: ");
                         Serial.println(StringDeviceAddress);
                     #endif
-                    this->setSensorValid(StringDeviceAddress);
+                    JsonArray instances=this->_devices[StringDeviceAddress].as<JsonArray>();
+                    for (JsonObject deviceData : instances) {
+                        this->setSensorConnected(deviceData);
+                    }
                 }else{
                     #ifdef DEBUG
                         Serial.print("add device address: ");
                         Serial.println(StringDeviceAddress);
                     #endif
-                    this->_config[StringDeviceAddress]["deviceAddress"]=StringDeviceAddress;
-                    this->_config[StringDeviceAddress]["deviceID"]=ds1820id;
-                    this->_config[StringDeviceAddress]["busID"]=busID;
-                    this->_config[StringDeviceAddress]["temperature"]=9999;
-                    this->_config[StringDeviceAddress]["lastTemperature"]=9999;
-                    this->_config[StringDeviceAddress]["canID"]="";
-                    this->_config[StringDeviceAddress]["homeAssistantID"]=StringDeviceAddress;
-                    this->_config[StringDeviceAddress]["enable"]=false;
-                    this->setSensorValid(StringDeviceAddress);
-                    #ifdef DEBUG
-                        serializeJson(this->_config[StringDeviceAddress],Serial);
-                    #endif
+                    JsonObject deviceData=this->_config["devices"][StringDeviceAddress].add<JsonObject>();
+                    serializeJson(this->_config,Serial);
+                    Serial.println(" add device adr obj");
+                    deviceData["deviceAddress"]=StringDeviceAddress;
+                    deviceData["deviceID"]=ds1820id;
+                    deviceData["busID"]=busID;
+                    deviceData["temperature"]=DEVICE_DISCONNECTED_C;
+                    deviceData["canID"]="";
+                    deviceData["homeAssistantID"]=StringDeviceAddress;
+                    this->setSensorConnected(deviceData);
+                    this->setSensorDisable(deviceData);
+                    
                 }
+                #ifdef DEBUG
+                    serializeJson(this->_config,Serial);
+                    Serial.println(" ADD/UPDATE");
+                #endif
             }else{
                 #ifdef DEBUG
                     Serial.print("can not get device address: ");
@@ -165,16 +213,23 @@ void ds1820HA::updateSensors(int busID){
     }
 }
 void ds1820HA::readAllSensorsTemp(uint busID){
-    SensorsBus[busID].requestTemperatures();
-    JsonObject sensors = this->_config.as<JsonObject>();
+    this->SensorsBus[busID].requestTemperatures();
+    JsonObject sensors = this->_config["devices"].as<JsonObject>();
     for (JsonPair kv : sensors) {
         String sensorAddress=String(kv.key().c_str());
-        if (this->_config[sensorAddress]["busID"].as<u_int>()==busID){
+        if ((this->_config["devices"][sensorAddress]["busID"].as<u_int>()==busID) and
+            (this->_config["devices"][sensorAddress]["enable"].as<bool>()) and
+            (this->_config["devices"][sensorAddress]["connected"].as<bool>())) 
+        {
             DeviceAddress SensorDeviceAdd;
-            this->stringToDeviceAddress(this->_config[sensorAddress]["deviceAddress"],SensorDeviceAdd);
-            float tempC = SensorsBus[busID].getTempC(SensorDeviceAdd);
+            this->stringToDeviceAddress(this->_config["devices"][sensorAddress]["deviceAddress"].as<String>(),SensorDeviceAdd);
+            #ifdef DEBUG    
+                Serial.print("read temperatur for device addreaa: ");
+                Serial.println(this->_config["devices"][sensorAddress]["deviceAddress"].as<String>());
+            #endif
+            float tempC = this->SensorsBus[busID].getTempC(SensorDeviceAdd);
             if (tempC != DEVICE_DISCONNECTED_C){
-                this->_config[sensorAddress]
+                this->_config["devices"][sensorAddress]["temperature"]=tempC = round(tempC*10)/10; // round for one digigit
             }else{
             #ifdef DEBUG
                 Serial.print("Error: Could not read temperature data");
@@ -186,15 +241,15 @@ void ds1820HA::readAllSensorsTemp(uint busID){
 void ds1820HA::loop(){
     if (millis() - this->lastSensorInterval >= this->sensorInterval){        // check evry 1s
         this->lastSensorInterval =millis();
-        this->setAllSensorNoValid();
+        #ifdef DEBUG
+            Serial.println("check for new devices");
+            serializeJson(this->_devices,Serial);
+            Serial.println(" START");
+        #endif
+        this->setAllSensorNotConnected();
         // update all sensors
-        for (uint busID=0;busID>sizeof(SensorsBus);busID++){
-            #ifdef DEBUG
-                Serial.print("check bus ");
-                Serial.print(busID);
-                Serial.println("for new onewire devices");
-            #endif
-            SensorsBus[busID].begin(); // begin().. find new devices an refresh the device counts.
+        for (uint busID=0;busID<ONE_WIRE_BUS_COUNT;busID++){
+            this->SensorsBus[busID].begin(); // begin().. find new devices an refresh the device counts.
             this->updateSensors(busID);            
         }
     }

@@ -16,7 +16,7 @@
     own configuratione file
     */
     #ifndef ONE_WIRE_PORT
-        #define ONE_WIRE_PORT {6,7}
+        #define ONE_WIRE_PORT {5,4}
     #endif
     #ifndef ONE_WIRE_BUS_COUNT
         #define ONE_WIRE_BUS_COUNT 2
@@ -24,8 +24,8 @@
     #ifndef DS18B20_MAX_SENSORS
         #define DS18B20_MAX_SENSORS 8 // max DS18B20 sensors to handle
     #endif //DS18B20_MAX_SENSORS
-    #ifdef DS18B20_UPDATE_TIME
-        #define DS18B20_UPDATE_TIME 1000
+    #ifndef DS18B20_UPDATE_TIME
+        #define DS18B20_UPDATE_TIME 5000
     #endif
 
     class ds1820HA{
@@ -34,13 +34,16 @@
             int OneWirePins[ONE_WIRE_BUS_COUNT]=ONE_WIRE_PORT;
             DallasTemperature SensorsBus[ONE_WIRE_BUS_COUNT];
             JsonDocument _config;
+            JsonObject _devices;
             ulong sensorInterval = DS18B20_UPDATE_TIME;
             ulong lastSensorInterval =0;
             void stringToDeviceAddress(String ,DeviceAddress& );
             String deviceAddresToString(DeviceAddress );
-            void setAllSensorNoValid();
-            void setSensorNoValid(String );
-            void setSensorValid(String );
+            void setAllSensorNotConnected();
+            void setSensorConnected(JsonObject& );
+            void setSensorNotConnected(JsonObject&);
+            void setSensorEnable(JsonObject& );
+            void setSensorDisable(JsonObject& );
             void updateSensors(int );
             void readAllSensorsTemp(uint);
         public:
