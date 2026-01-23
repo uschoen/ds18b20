@@ -18,10 +18,12 @@ void ds1820HA::begin(){
         #endif
         this->_devices=this->_config["devices"].to<JsonObject>();
     }
-    serializeJson(this->_config,Serial);
-    Serial.println("");
-    serializeJson(this->_devices,Serial);
-    Serial.println("");
+    #ifdef DEBUG_JSON
+        serializeJson(this->_config,Serial);
+        Serial.println(" CONFIG");
+        serializeJson(this->_devices,Serial);
+        Serial.println(" DEVICES");
+    #endif
     this->setAllSensorNotConnected();
     for (int busID=0;busID<ONE_WIRE_BUS_COUNT;busID++){
         #ifdef DEBUG
@@ -187,8 +189,10 @@ void ds1820HA::updateSensors(int busID){
                         Serial.println(StringDeviceAddress);
                     #endif
                     JsonObject deviceData=this->_devices[StringDeviceAddress].add<JsonObject>();
-                    serializeJson(this->_devices,Serial);
-                    Serial.println(" add device adr obj");
+                    #ifdef DEBUG_JSON
+                        serializeJson(this->_devices,Serial);
+                        Serial.println(" ADD DEVICES");
+                    #endif
                     deviceData["deviceAddress"]=StringDeviceAddress;
                     deviceData["deviceID"]=ds1820id;
                     deviceData["busID"]=busID;
@@ -199,8 +203,8 @@ void ds1820HA::updateSensors(int busID){
                     this->setSensorDisable(deviceData);
                     
                 }
-                #ifdef DEBUG
-                    serializeJson(this->_config,Serial);
+                #ifdef DEBUG_JSON
+                    serializeJson(this->_devices,Serial);
                     Serial.println(" ADD/UPDATE");
                 #endif
             }else{
@@ -246,7 +250,7 @@ void ds1820HA::readAllSensorsTemp(){
 void ds1820HA::loop(){
     if (millis() - this->lastSensorInterval >= this->sensorInterval){        // check evry 1s
         this->lastSensorInterval =millis();
-        #ifdef DEBUG
+        #ifdef DEBUG_JSON
             Serial.println("check for new devices");
             serializeJson(this->_devices,Serial);
             Serial.println(" START");

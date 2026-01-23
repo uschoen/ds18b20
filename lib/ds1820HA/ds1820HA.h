@@ -28,6 +28,9 @@
         #define DS18B20_UPDATE_TIME 5000
     #endif
 
+    // only for development, enable serial output auf the json string
+    //#define DEBUG_JSON
+
     class ds1820HA{
         private: 
             OneWire oneWireBus[ONE_WIRE_BUS_COUNT];
