@@ -177,6 +177,8 @@ void ds1820HA::updateSensors(int busID){
                     #endif
                     JsonArray instances=this->_devices[StringDeviceAddress].as<JsonArray>();
                     for (JsonObject deviceData : instances) {
+                        deviceData["deviceID"]=ds1820id;
+                        deviceData["busID"]=busID;
                         this->setSensorConnected(deviceData);
                     }
                 }else{
@@ -184,8 +186,8 @@ void ds1820HA::updateSensors(int busID){
                         Serial.print("add device address: ");
                         Serial.println(StringDeviceAddress);
                     #endif
-                    JsonObject deviceData=this->_config["devices"][StringDeviceAddress].add<JsonObject>();
-                    serializeJson(this->_config,Serial);
+                    JsonObject deviceData=this->_devices[StringDeviceAddress].add<JsonObject>();
+                    serializeJson(this->_devices,Serial);
                     Serial.println(" add device adr obj");
                     deviceData["deviceAddress"]=StringDeviceAddress;
                     deviceData["deviceID"]=ds1820id;
@@ -212,31 +214,34 @@ void ds1820HA::updateSensors(int busID){
         }
     }
 }
-void ds1820HA::readAllSensorsTemp(uint busID){
-    this->SensorsBus[busID].requestTemperatures();
-    JsonObject sensors = this->_config["devices"].as<JsonObject>();
-    for (JsonPair kv : sensors) {
-        String sensorAddress=String(kv.key().c_str());
-        if ((this->_config["devices"][sensorAddress]["busID"].as<u_int>()==busID) and
-            (this->_config["devices"][sensorAddress]["enable"].as<bool>()) and
-            (this->_config["devices"][sensorAddress]["connected"].as<bool>())) 
-        {
-            DeviceAddress SensorDeviceAdd;
-            this->stringToDeviceAddress(this->_config["devices"][sensorAddress]["deviceAddress"].as<String>(),SensorDeviceAdd);
-            #ifdef DEBUG    
-                Serial.print("read temperatur for device addreaa: ");
-                Serial.println(this->_config["devices"][sensorAddress]["deviceAddress"].as<String>());
-            #endif
-            float tempC = this->SensorsBus[busID].getTempC(SensorDeviceAdd);
-            if (tempC != DEVICE_DISCONNECTED_C){
-                this->_config["devices"][sensorAddress]["temperature"]=tempC = round(tempC*10)/10; // round for one digigit
-            }else{
+void ds1820HA::readAllSensorsTemp(){
+    for (JsonPair kv : this->_devices) {
+        // kv.key() ist die Adresse (z.B. "28:ff:d4...")
+        JsonObject sensorData = kv.value()[0];
+        DeviceAddress deviceAdr;
+        if ((!sensorData["enable"].as<bool>()) or (!sensorData["connected"].as<bool>())){continue;}
+        this->stringToDeviceAddress(String(kv.key().c_str()) ,deviceAdr);
+        #ifdef DEBUG
+            Serial.print("read sensor: ");
+            Serial.print(kv.key().c_str());
+            Serial.print(" ,busid:");
+            Serial.println(sensorData["busID"].as<int>());
+        #endif
+        this->SensorsBus[sensorData["busID"].as<int>()].requestTemperaturesByAddress(deviceAdr);
+        float temperatur=round(this->SensorsBus[sensorData["busID"].as<int>()].getTempC(deviceAdr)* 10.0) / 10.0;
+        if (temperatur==DEVICE_DISCONNECTED_C){
             #ifdef DEBUG
-                Serial.print("Error: Could not read temperature data");
+                Serial.println("can not read temperatur,device disconnected");
             #endif
-            }
+            this->setSensorNotConnected(sensorData);
+        }else{
+            sensorData["temperature"]=temperatur;
+            #ifdef DEBUG
+                Serial.print("read temperature: ");
+                Serial.println(sensorData["temperature"].as<float>());
+            #endif
         }
-    }   
+    }    
 }
 void ds1820HA::loop(){
     if (millis() - this->lastSensorInterval >= this->sensorInterval){        // check evry 1s
@@ -252,5 +257,6 @@ void ds1820HA::loop(){
             this->SensorsBus[busID].begin(); // begin().. find new devices an refresh the device counts.
             this->updateSensors(busID);            
         }
+        this->readAllSensorsTemp();
     }
 }   
