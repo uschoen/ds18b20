@@ -36,8 +36,7 @@
             OneWire oneWireBus[ONE_WIRE_BUS_COUNT];
             int OneWirePins[ONE_WIRE_BUS_COUNT]=ONE_WIRE_PORT;
             DallasTemperature SensorsBus[ONE_WIRE_BUS_COUNT];
-            JsonDocument _config;
-            JsonObject _devices;
+            JsonDocument* _config=nullptr; 
             ulong sensorInterval = DS18B20_UPDATE_TIME;
             ulong lastSensorInterval =0;
             void stringToDeviceAddress(String ,DeviceAddress& );

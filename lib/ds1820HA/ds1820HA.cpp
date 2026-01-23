@@ -7,21 +7,21 @@ void ds1820HA::begin(){
     #ifdef DEBUG
         Serial.println("beginn onewire setup ds1820HA");
     #endif 
-    if (this->_config["devices"].is<JsonObject>()){
+    if ((*this->_config)["devices"].is<JsonObject>()){
          #ifdef DEBUG
             Serial.println("found 'devices' in config");
         #endif
-        this->_devices=this->_config["devices"];
+        //this->_devices=this->_config["devices"];
     }else{
         #ifdef DEBUG
             Serial.println("add 'devices' to config");
         #endif
-        this->_devices=this->_config["devices"].to<JsonObject>();
+        (*this->_config)["devices"].to<JsonObject>();
     }
     #ifdef DEBUG_JSON
-        serializeJson(this->_config,Serial);
+        serializeJson((*this->_config),Serial);
         Serial.println(" CONFIG");
-        serializeJson(this->_devices,Serial);
+        serializeJson((*this->_config)["devices"],Serial);
         Serial.println(" DEVICES");
     #endif
     this->setAllSensorNotConnected();
@@ -60,7 +60,7 @@ void ds1820HA::begin(JsonDocument& config){
     #ifdef DEBUG
         Serial.println("beginn ds1820HA");
     #endif
-    this->_config=config;
+    this->_config=&config;
     this->begin();
 }
 /*
@@ -107,7 +107,8 @@ void ds1820HA::setAllSensorNotConnected(){
     #ifdef DEBUG
         Serial.println("set all Sensors to not connected");
     #endif
-    for (JsonPair devicePair : this->_devices) {
+    JsonObject sensors=(*this->_config)["devices"].as<JsonObject>();
+    for (JsonPair devicePair : sensors) {
         String deviceAddr = devicePair.key().c_str();
         JsonArray instances = devicePair.value().as<JsonArray>();
         for (JsonObject deviceData : instances) {
@@ -172,12 +173,12 @@ void ds1820HA::updateSensors(int busID){
             String StringDeviceAddress;
             if(this->SensorsBus[busID].getAddress(ds1820DeviceAddress, ds1820id)){ 
                 StringDeviceAddress=this->deviceAddresToString(ds1820DeviceAddress);
-                if (this->_devices[StringDeviceAddress].is<JsonArray>()){
+                if ((*this->_config)["devices"][StringDeviceAddress].is<JsonArray>()){
                     #ifdef DEBUG
                         Serial.print("update device address: ");
                         Serial.println(StringDeviceAddress);
                     #endif
-                    JsonArray instances=this->_devices[StringDeviceAddress].as<JsonArray>();
+                    JsonArray instances=(*this->_config)["devices"][StringDeviceAddress].as<JsonArray>();
                     for (JsonObject deviceData : instances) {
                         deviceData["deviceID"]=ds1820id;
                         deviceData["busID"]=busID;
@@ -188,9 +189,9 @@ void ds1820HA::updateSensors(int busID){
                         Serial.print("add device address: ");
                         Serial.println(StringDeviceAddress);
                     #endif
-                    JsonObject deviceData=this->_devices[StringDeviceAddress].add<JsonObject>();
+                    JsonObject deviceData=(*this->_config)["devices"][StringDeviceAddress].add<JsonObject>();
                     #ifdef DEBUG_JSON
-                        serializeJson(this->_devices,Serial);
+                        serializeJson(this->_config["devices"],Serial);
                         Serial.println(" ADD DEVICES");
                     #endif
                     deviceData["deviceAddress"]=StringDeviceAddress;
@@ -204,7 +205,7 @@ void ds1820HA::updateSensors(int busID){
                     
                 }
                 #ifdef DEBUG_JSON
-                    serializeJson(this->_devices,Serial);
+                    serializeJson(this->_config["devices"],Serial);
                     Serial.println(" ADD/UPDATE");
                 #endif
             }else{
@@ -219,7 +220,8 @@ void ds1820HA::updateSensors(int busID){
     }
 }
 void ds1820HA::readAllSensorsTemp(){
-    for (JsonPair kv : this->_devices) {
+    JsonObject sensors=(*this->_config)["devices"].as<JsonObject>();
+    for (JsonPair kv : sensors) {
         // kv.key() ist die Adresse (z.B. "28:ff:d4...")
         JsonObject sensorData = kv.value()[0];
         DeviceAddress deviceAdr;
@@ -252,7 +254,7 @@ void ds1820HA::loop(){
         this->lastSensorInterval =millis();
         #ifdef DEBUG_JSON
             Serial.println("check for new devices");
-            serializeJson(this->_devices,Serial);
+            serializeJson(this->_config["devices"],Serial);
             Serial.println(" START");
         #endif
         this->setAllSensorNotConnected();
